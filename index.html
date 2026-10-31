@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Exactly: a design challenge generator. Get a random category, brand name and colour palette, then design it.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23e6005c'/%3E%3Ctext x='16' y='24' font-family='Impact,Arial' font-size='22' text-anchor='middle' fill='white'%3EE%3C/text%3E%3C/svg%3E">
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<title>Exactly</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Inter+Tight:wght@500;700&display=swap">
+<style>
+/* Layout: one retro desktop dialog centred on a pale desk, hot-pink caption above, challenge card below.
+   Deliberately single-look (a 2000s Windows dialog), so colours are set explicitly for both host themes. */
+:root{
+  color-scheme: light;
+  --desk:#f6f3f5;
+  --ink:#121014;
+  --pink:#e6005c;
+  --chrome:#ece9d8;
+  --chrome-dark:#aca899;
+  --title-a:#0a246a;
+  --title-b:#3a8ef0;
+  --select:#0b0b0b;
+  --white:#ffffff;
+  --muted:#6d6872;
+  --display:"Anton","Impact","Haettenschweiler","Arial Narrow Bold",sans-serif;
+  --ui:Tahoma,"Segoe UI","Verdana",system-ui,sans-serif;
+  --body:"Inter Tight",system-ui,-apple-system,sans-serif;
+}
+html,body{background:var(--desk);color:var(--ink)}
+body{
+  font-family:var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:28px 48px;
+}
+.wrap{max-width:860px;margin:0 auto;display:grid;gap:22px}
+
+.caption{
+  font-family:var(--display);color:var(--pink);
+  font-size:clamp(44px,9vw,92px);line-height:.95;text-align:center;
+  letter-spacing:-.01em;margin:0;text-wrap:balance;
+  text-shadow:0 2px 0 rgba(0,0,0,.08);
+  min-height:1em;
+}
+.caption .w{display:inline-block;margin:0 .12em;animation:pop .35s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes pop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+.sub{text-align:center;margin:-10px 0 0;color:var(--muted);font-size:14px}
+
+/* ---------- the dialog ---------- */
+.win{
+  background:var(--chrome);border:1px solid #0831d9;border-radius:8px 8px 3px 3px;
+  box-shadow:0 18px 40px -18px rgba(20,10,40,.45),0 0 0 1px rgba(255,255,255,.6) inset;
+  overflow:hidden;font-family:var(--ui);color:var(--ink);
+}
+.titlebar{
+  display:flex;align-items:center;gap:8px;padding:5px 6px 5px 8px;
+  background:linear-gradient(180deg,#0997ff 0%,#0053ee 8%,#0050ee 40%,#06f 88%,#0047d6 100%);
+  color:var(--white);font-weight:700;font-size:15px;text-shadow:1px 1px 0 #0a1e5a;
+}
+.titlebar .ico{width:16px;height:16px;background:var(--white);border:2px solid #9fb8ef;border-radius:2px;position:relative;flex:none}
+.titlebar .ico::after{content:"";position:absolute;left:2px;right:2px;top:3px;height:2px;background:#0050ee;box-shadow:0 4px 0 #0050ee}
+.titlebar .t{flex:1}
+.xbtn{width:22px;height:22px;border-radius:3px;border:1px solid var(--white);background:linear-gradient(#e97b5a,#c4421b);color:var(--white);font:700 13px/1 var(--ui);display:grid;place-items:center;cursor:default}
+
+.body{padding:16px 16px 10px;display:grid;gap:16px}
+.panes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.15fr);gap:10px;align-items:start}
+
+.col{min-width:0;display:grid;gap:0}
+.colhead{
+  display:flex;align-items:center;justify-content:space-between;gap:6px;
+  background:linear-gradient(#fff,#ebeadb);border:1px solid var(--chrome-dark);border-bottom:none;
+  padding:3px 6px;font-weight:700;font-size:12px;
+}
+.hold{display:flex;align-items:center;gap:3px;font-weight:400;font-size:11px;color:#333;cursor:pointer;user-select:none}
+.hold input{margin:0;accent-color:#0050ee}
+.list{
+  position:relative;
+  height:168px;overflow-y:scroll;background:var(--white);
+  border:1px solid #7f9db9;list-style:none;margin:0;padding:1px 0;
+  font-size:12.5px;font-weight:700;scrollbar-color:#b9c9ef #f2f1ea;
+}
+.list li{padding:1px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;line-height:17px}
+.list li:hover{background:#e4ecfb}
+.list li.on{background:var(--select);color:var(--white)}
+.list:focus-visible{outline:2px dotted #0050ee;outline-offset:1px}
+
+/* preview pane: palette "reference card" */
+.preview{
+  min-width:0;background:var(--white);border:1px solid #7f9db9;height:190px;
+  display:grid;grid-template-rows:auto auto 1fr;padding:10px;gap:6px;overflow:hidden;
+}
+.pv-title{font-family:Georgia,"Linux Libertine","Times New Roman",serif;font-size:15px;line-height:1.15;margin:0;border-bottom:1px solid #c8ccd1;padding-bottom:4px}
+.pv-note{font:11px/1.35 Arial,sans-serif;color:#333;margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.swatches{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;align-items:stretch;min-height:0}
+.sw{border:1px solid rgba(0,0,0,.18);border-radius:1px;display:flex;align-items:flex-end;padding:0;cursor:pointer;min-height:0;position:relative;font:inherit;background:none}
+.sw span{font:9px/1 var(--ui);overflow:hidden;white-space:nowrap;background:rgba(255,255,255,.88);color:#111;width:100%;padding:3px 0;text-align:center;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.sw:focus-visible{outline:2px dotted #0050ee;outline-offset:1px}
+
+.actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+.btn{
+  font:12.5px var(--ui);color:var(--ink);min-width:96px;padding:5px 16px;
+  background:linear-gradient(#fff,#f0f0ea 60%,#d6d0c5);border:1px solid #003c74;border-radius:3px;cursor:pointer;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.7);
+}
+.btn:hover{box-shadow:inset 0 0 0 2px #f8b636}
+.btn:active{background:linear-gradient(#d6d0c5,#ebe9df)}
+.btn:focus-visible{outline:1px dotted #000;outline-offset:-4px}
+.btn.primary{min-width:130px;font-weight:700}
+
+.status{
+  display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  border-top:1px solid var(--chrome-dark);padding:5px 16px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#4b4740;
+  background:linear-gradient(#efede2,#e2dfcf);
+}
+.status b{font-weight:700;min-width:0;overflow-wrap:anywhere}
+
+/* ---------- challenge card ---------- */
+.card{
+  background:var(--white);border:1px solid #e3dde3;border-radius:6px;padding:18px 20px;display:grid;gap:12px;
+}
+.eyebrow{font:700 11px/1 var(--body);letter-spacing:.14em;text-transform:uppercase;color:var(--pink);margin:0}
+.prompt{font:700 clamp(19px,3.2vw,26px)/1.25 var(--body);margin:0;text-wrap:balance;color:var(--ink)}
+.prompt em{font-style:normal;background:linear-gradient(transparent 62%,#ffd1e3 62%)}
+.card-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.toast{font-size:13px;color:var(--muted)}
+
+.history h2{font:700 11px/1 var(--body);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.history ol{margin:0;padding:0;list-style:none;display:grid;gap:6px}
+.history li{display:flex;align-items:center;gap:10px;font-size:14px;min-width:0}
+.history .mini{display:flex;flex:none}
+.history .mini i{width:12px;height:12px;display:block;border:1px solid rgba(0,0,0,.12)}
+.history button{all:unset;cursor:pointer;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.history button:hover{text-decoration:underline}
+.history button:focus-visible{outline:2px dotted #0050ee}
+.empty{color:var(--muted);font-size:13px}
+
+.how{font-size:13.5px;line-height:1.55;color:#3e3a42;max-width:65ch;margin:0 auto;text-align:center}
+
+@media (max-width:760px){
+  .panes{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .preview{grid-column:1/-1;height:150px}
+}
+@media (max-width:520px){
+  .panes{grid-template-columns:1fr}
+  .list{height:112px}
+  .body{padding:12px}
+}
+@media (prefers-reduced-motion:reduce){
+  .caption .w{animation:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="caption" id="caption" aria-live="polite"></h1>
+  <p class="sub">Pick a category, a brand name and a colour source. Design it using only those colours.</p>
+
+  <section class="win" aria-label="Exactly generator">
+    <div class="titlebar"><span class="ico" aria-hidden="true"></span><span class="t">Exactly</span><span class="xbtn" aria-hidden="true">✕</span></div>
+    <div class="body">
+      <div class="panes">
+        <div class="col">
+          <div class="colhead"><span>Category</span><label class="hold"><input type="checkbox" id="hold-cat">Hold</label></div>
+          <ul class="list" id="list-cat" tabindex="0" role="listbox" aria-label="Category"></ul>
+        </div>
+        <div class="col">
+          <div class="colhead"><span>Brand Name</span><label class="hold"><input type="checkbox" id="hold-brand">Hold</label></div>
+          <ul class="list" id="list-brand" tabindex="0" role="listbox" aria-label="Brand name"></ul>
+        </div>
+        <div class="col">
+          <div class="colhead"><span>Color Palette</span><label class="hold"><input type="checkbox" id="hold-pal">Hold</label></div>
+          <ul class="list" id="list-pal" tabindex="0" role="listbox" aria-label="Color palette source"></ul>
+        </div>
+        <div class="preview" id="preview" aria-live="polite">
+          <p class="pv-title" id="pv-title"></p>
+          <p class="pv-note" id="pv-note"></p>
+          <div class="swatches" id="swatches"></div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="generate" type="button">Generate</button>
+      </div>
+    </div>
+    <div class="status"><span>Exactly · design challenge generator</span><b id="status"></b></div>
+  </section>
+
+  <section class="card" aria-label="Your challenge">
+    <p class="eyebrow">Your challenge</p>
+    <p class="prompt" id="prompt"></p>
+    <div class="card-row">
+      <button class="btn" id="copy" type="button">Copy prompt</button>
+      <button class="btn" id="copyhex" type="button">Copy hex codes</button>
+      <span class="toast" id="toast" role="status"></span>
+    </div>
+  </section>
+
+  <section class="card history" aria-label="Recent challenges">
+    <h2>Recent rolls</h2>
+    <ol id="history"><li class="empty">Your last eight challenges show up here.</li></ol>
+  </section>
+
+  <p class="how">Click any item to choose it yourself, tick <b>Hold</b> to keep a column while you reroll the others, or press <b>Space</b> to generate. Click a swatch to copy its hex code.</p>
+</div>
+
+<script>
+const CATEGORIES = ["Dairy","Skincare","Perfume","Ice Cream","Soap","Bookstore","Pet Food","Furniture","Hair Care","Men's Health","Hot Sauce","Tea","Motel","Record Store","Insurance Company","Credit Card","Florist","Eyewear","Luggage","Pasta","Candle","Cereal","Bakery","Bike Shop","Dentist","Laundromat","Sparkling Water","Toothpaste","Bank","Yoga Studio","Hardware Store","Sock Brand","Gum","Plant Nursery","Taxi Company","Radio Station","Chocolate","Sunscreen","Vitamin","Cat Café",
+"Coffee Roaster","Brewery","Wine Bar","Kombucha","Energy Drink","Crisps","Biscuit","Frozen Pizza","Jam","Honey","Olive Oil","Butcher","Fishmonger","Sushi Bar","Noodle Shop","Food Truck","Diner","Juice Bar","Donut Shop","Popcorn","Baby Food","Dog Treats","Vet Clinic","Dog Groomer","Aquarium Shop","Bird Seed","Nail Salon","Barber","Tattoo Studio","Lip Balm","Deodorant","Shampoo","Razor","Nail Polish","Bath Bomb","Mouthwash","Sleep Aid","Gym","Running Shoe","Swimwear","Climbing Wall","Bowling Alley","Mini Golf","Skate Shop","Surf School","Tennis Club","Pharmacy","Opticians","Hospital","Therapist","Funeral Home","Wedding Planner","Estate Agent","Law Firm","Accountant","Removal Company","Plumber","Locksmith","Cleaning Service","Dry Cleaner","Tailor","Shoe Repair","Pawn Shop","Antique Shop","Charity Shop","Toy Shop","Stationery","Art Supplies","Music School","Guitar Shop","Podcast","Newspaper","Magazine","Museum","Zoo","Theme Park","Cinema","Theatre","Library","Primary School","University","Driving School","Airline","Train Line","Campsite","Hostel","Cruise Ship","Car Wash","Petrol Station","Electric Car","Scooter Rental","Phone Case","Headphones","Video Game","Dating App","Weather App","Smart Speaker","Mattress","Wallpaper","Paint","Kitchenware","Umbrella","Watch","Jewellery","Hat Shop","Underwear","Pyjamas","Board Game","Puzzle","Fireworks","Seed Company","Garden Centre","Political Party","Football Club","Choir","Detective Agency","Haunted House"];
+
+const BRANDS = ["Juk","Westward","Fizzle","Vodt","Matter","Covery","Grump","Poem","Almost","Moth","Ordinary","Bureau","Oops","Tender","Ditto","Jeanie's","Dotty","Mable","Elsewhere","Dolly","Penny","Clove","Dirt","Thanks","Favre","Hum","Nana","Plinth","Soft Boy","Mildred","Gulp","Okay","Lull","Pebble","Marge","Hush","Brisk","Wobble","Kettle","Velma","Sorry","Upstairs","Tuesday","Crumb","Gloria",
+"Biscuit","Noodle","Fern","Doris","Plop","Velvet","Gravel","Muffin","Hilda","Sprout","Bonk","Ferris","Lou","Puddle","Merit","Ozzie","Static","Goodnight","Wilma","Sneeze","Butter","Orbit","Gus","Pickle","Marlow","Hiccup","Tidy","Bev","Quill","Mushy","Sundry","Pip","Yolk","Ruth","Noon","Flop","Dorothy","Grain","Sloth","Frank","Meadow","Blip","Ivy","Thud","Polly","Swell","Mundane","Agnes","Fudge","Kip","Lumen","Dumpling","Edna","Twig","Snug","Herb","Wanda","Glum","Peachy","Boris","Ripple","Hm","Lemony","Norma","Chunk","Vera","Daydream","Pudge","Ernest","Fizz Bang","Mellow","Odd","Barry","Wink","Plum","Gertie","Smudge","Monday","Rumble","Juniper","Toot","Harold","Sorbet","Mumble","Cleo","Nifty","Spud","Linden","Gosh","Phyllis","Drizzle","Bean","Otto","Fluff","Dew","Maude","Squish","Petal","Stanley","Glow","Nope","Bunty","Cosmo","Lint","Opal","Tumble","Winnie","Brr","Saucy","Ned","Halfway","Coral","Zip","Mavis","Loaf","Whim","Cecil","Mossy","Yawn","Ida","Bloop","Kindly","Rudy","Pith","Slurp","Esther","Lark","Gumdrop","Hank","Soot","Ta-Da","Fig","Nell","Wiggle","Basil","Meh","Tilly","Clunk","Rosie","Fable","Dimple","Walt","Sizzle","Pearl","Ahem","Bertie","Gloop","Neat","Myrtle","Pebbles & Co","Uh Huh","Clem","Hooray","Mimi","Sludge","Arlo","Snack","Greta","Woof","Jolly","Igor","Cozy","Blunt","Lottie","Fuzz","Rex","Eventually"];
+
+// Each palette source: name, a short "encyclopedia" style note, and 5 colours sampled from it.
+const PALETTES = [
+  {n:"Marzipan Pig", d:"A traditional German, Dutch and Scandinavian sweet: marzipan shaped as a pig.", c:["#C97B57","#C9A06E","#F2D6BD","#120E0E","#FFFFFF"]},
+  {n:"Fruit Bowl Lamp", d:"A 1970s acrylic lamp made of glowing plastic grapes, pears and lemons.", c:["#7A2E7E","#E8B33A","#9CC24A","#E4572E","#F7EBD3"]},
+  {n:"Close-Up Teeth", d:"A dental brochure photo, slightly too close to be comfortable.", c:["#F4EEDF","#D8C9A8","#C4525A","#8E2F3A","#3B1E22"]},
+  {n:"Neon Plastic Dinosaur", d:"A bootleg vinyl monster toy in colours no fossil ever had.", c:["#FF6FB5","#FFE14D","#4DE1C1","#7D5CFF","#1B1B2F"]},
+  {n:"Rotary Phone", d:"A beige-and-orange desk phone from a 1970s office.", c:["#F08A24","#E9D7B3","#6B4A2E","#2B2B2B","#C7B79A"]},
+  {n:"Glow Worm Toy", d:"A soft plush toy with a vinyl face that lights up when squeezed.", c:["#5FB548","#F6D33C","#F27BA6","#3B6FD6","#FFF4E0"]},
+  {n:"Pencil Case", d:"A pale green tin pencil case with a cartoon label, slightly rusted.", c:["#B9D7A1","#E8E3C7","#D2473B","#2F4A3A","#F7C948"]},
+  {n:"Ice Cream Truck", d:"A pastel truck with a sun-faded menu board on the side.", c:["#F7B6C9","#9ED8E8","#FFF3B0","#E0473C","#FDFBF5"]},
+  {n:"1998 Electronic Pet", d:"A furry talking toy with big eyes and a speckled coat.", c:["#9C7BC7","#F2E3C6","#E46C9E","#2B1B3D","#7BC9D9"]},
+  {n:"1960s Jello Dessert", d:"A molded gelatin ring with suspended fruit, served on a party table.", c:["#E8323C","#F6A23C","#8CC63F","#F6E7C1","#4A2C2A"]},
+  {n:"Ceramic Cat Figurine", d:"A glossy teal kitten from a thrift store shelf.", c:["#2BA39A","#A9E2D7","#F2EEE6","#1C3A3A","#E2A3A3"]},
+  {n:"Bowling Ball", d:"A marbled reactive ball with swirls of violet and cobalt.", c:["#4B1E78","#2756C9","#C04BC9","#0E0B1F","#9EB7F2"]},
+  {n:"Vintage Car", d:"A mint two-tone sedan with chrome trim and red interior.", c:["#A8D8C5","#F4F1E8","#C0392B","#B8BDC2","#2D3436"]},
+  {n:"Fishing Lure", d:"A painted crankbait with a scale pattern and a chartreuse belly.", c:["#D7F23B","#F26B21","#2F6F4F","#E8E8E0","#111111"]},
+  {n:"Claymation Camera", d:"A handmade plasticine camera from a stop-motion film set.", c:["#8B5E3C","#D8B26E","#3A6EA5","#C94C3A","#EEE1C8"]},
+  {n:"Taxidermy Squirrel", d:"A slightly startled squirrel on a mossy log in a dusty display case.", c:["#9B6234","#D1A26C","#566B3A","#3B2A1E","#E9DCC4"]},
+  {n:"Motel Signage", d:"A roadside neon sign with a flickering VACANCY panel.", c:["#FF4F79","#3CE1FF","#FFD23F","#1A1347","#F25C2A"]},
+  {n:"Toy Soldier", d:"A painted plastic soldier, olive drab with peeling flesh tone.", c:["#5B6B34","#3A4423","#D9A57B","#8C7A5B","#E8E2CF"]},
+  {n:"Inflatable Chair", d:"A translucent blow-up armchair from a 90s teen bedroom.", c:["#B06BFF","#FF7AE0","#7FE3FF","#F2F2F2","#3C2AA3"]},
+  {n:"Plastic Toy Vegetables", d:"A play-kitchen set of shiny, slightly too-bright vegetables.", c:["#E5322D","#F5A623","#5CB02D","#7A3E98","#FFF4D6"]},
+  {n:"Glass Gem Corn", d:"A cob of heirloom corn with translucent kernels in every colour.", c:["#7B3FA0","#D9467A","#3FA7A2","#F2C14E","#3D6EC9"]},
+  {n:"Snail Figurine", d:"A small porcelain snail with a gold-rimmed shell.", c:["#D9B89C","#8A5A44","#C9A227","#F3EDE4","#6E7F5C"]},
+  {n:"Vintage Cadillac", d:"A pink 1950s convertible with whitewall tyres.", c:["#F4A6B8","#FFFFFF","#C9CED3","#8E1F3A","#232323"]},
+  {n:"Library Card Catalog", d:"Oak drawers with brass pulls and yellowed index cards.", c:["#8B5A2B","#C8A165","#B08D57","#F2E8CF","#2E2018"]},
+  {n:"Swimming Pool Tile", d:"Chipped mosaic tiles at the deep end of a public pool.", c:["#1E8FC2","#7FD1E8","#F3F7F8","#0B3C5D","#E9C46A"]},
+  {n:"Moldy Orange", d:"An orange left in the fruit bowl a week too long.", c:["#F28C28","#B7C9A8","#E6EEDC","#6D8A5E","#3A3A2A"]},
+  {n:"Grandma's Sofa", d:"A floral chintz sofa with a protective plastic cover.", c:["#C96E7E","#E7C9A9","#6E8B5B","#F5EAD7","#4A3B3B"]},
+  {n:"Airport Carpet", d:"A geometric terminal carpet designed to hide every stain.", c:["#1F3A6B","#E07A2B","#3BAFA0","#F2D06B","#2A1F2D"]},
+  {n:"Lava Lamp", d:"A blue-base lamp with slow red wax blobs.", c:["#E63946","#FF8C42","#1D3557","#457B9D","#F1FAEE"]},
+  {n:"Bruised Banana", d:"A banana right on the edge of banana bread.", c:["#F5D547","#C9A227","#5C3B1E","#2A1D12","#F6EFD2"]},
+  {n:"Sunburnt Tourist", d:"A postcard from a beach town, mid-afternoon.", c:["#E4675A","#F5C6A5","#2C8FBF","#FBE9B0","#FFFFFF"]},
+  {n:"Pharmacy Receipt", d:"A long thermal receipt with a faded red loyalty stripe.", c:["#F7F5EF","#C9C4B5","#D63C3C","#5C5B57","#1A1A1A"]},
+  {n:"Hospital Jelly Cup", d:"A green jelly dessert on a beige hospital tray.", c:["#7DCB4E","#E8DFC8","#B5AE9C","#F5F5F0","#5A7F9C"]},
+  {n:"School Bus Seat", d:"A cracked vinyl bus seat with chewing gum underneath.", c:["#2F5D3A","#F2B705","#3B3B3B","#C9C2B2","#E6E1D3"]},
+  {n:"Garden Gnome", d:"A chipped concrete gnome holding a tiny fishing rod.", c:["#D23C2F","#2E6FB7","#F2D2B6","#F5F2EA","#5B7F3A"]},
+  {n:"Prawn Cocktail", d:"A 1970s starter in a glass coupe with shredded lettuce.", c:["#F28C82","#F9D8C4","#8DBF5A","#F6E9A6","#C7D9DD"]},
+  {n:"Rusty Bicycle", d:"A mint bike left outside through a whole winter.", c:["#9FD6C2","#B35A28","#6E3B1E","#D9D2C3","#2A2A2A"]},
+  {n:"Cough Syrup", d:"A sticky bottle of cherry medicine with a measuring cup.", c:["#9B1B30","#E85A71","#F4E1C1","#3B1F2B","#FFFFFF"]},
+  {n:"Tropical Fish Tank", d:"A bubbling aquarium with plastic coral and a treasure chest.", c:["#0077B6","#FF7F50","#FFD60A","#80ED99","#03045E"]},
+  {n:"Hotel Bedspread", d:"A busy paisley bedspread in a budget hotel room.", c:["#7A2E3A","#C99A3F","#2F4858","#D9C7A7","#4F6D3A"]},
+  {n:"Easter Egg Foil", d:"Crinkled chocolate egg wrappers in pastel metallics.", c:["#C9A7E8","#F5B3C8","#A8E6CF","#FFE38A","#7B4B2A"]},
+  {n:"Sardine Tin", d:"An open tin of sardines in tomato sauce.", c:["#9EA7AD","#C83E2B","#E9C46A","#1D3557","#F2EEE3"]},
+  {n:"Chewing Gum Wall", d:"A brick alley covered in years of stuck-on gum.", c:["#FF8FAB","#7DD3FC","#C4F07A","#F9F871","#7A4A3A"]},
+  {n:"Retro Kitchen Lino", d:"Speckled linoleum in a 1950s kitchen.", c:["#F2E3C6","#E35D5B","#4FA3A5","#2D2D2D","#F7C873"]},
+  {n:"Peacock Feather", d:"A single iridescent tail feather.", c:["#0B6E4F","#1F4E9C","#3FC1C9","#C9A227","#2B193D"]},
+  {n:"Dentist Waiting Room", d:"Teal chairs, a fish poster and old magazines.", c:["#4FB3BF","#E7E3D8","#F2A65A","#8C9A9E","#2E3A3F"]},
+  {n:"Burnt Toast", d:"Toast left in one cycle too long.", c:["#2B1A10","#6B3E1F","#C8873E","#F2D6A2","#FFF7E6"]},
+  {n:"Pickled Beetroot", d:"A jar of sliced beets in deep magenta brine.", c:["#7A0C3A","#C2185B","#F8BBD0","#3E2723","#E8E5DA"]},
+  {n:"Holiday Sweater", d:"A knitted jumper with reindeer and snowflakes.", c:["#B71C1C","#1B5E20","#FAFAFA","#F9A825","#0D1B2A"]},
+  {n:"Mushroom Forest Floor", d:"Damp moss, leaf litter and a cluster of toadstools.", c:["#3E4E2C","#8A9A5B","#C1440E","#E9DCC9","#5A3E2B"]},
+  {n:"Arcade Carpet", d:"Black carpet printed with glowing planets and squiggles.", c:["#0B0B1E","#FF2E88","#2EF2FF","#FFE600","#8B5CF6"]},
+  {n:"Mint Toothpaste", d:"A striped squeeze of toothpaste on a brush.", c:["#E8F7F2","#4CC9B0","#E63946","#1D7874","#FFFFFF"]},
+  {n:"Seaside Rock Candy", d:"A stick of pink rock with lettering all the way through.", c:["#F48FB1","#FFFFFF","#E53935","#FFF3E0","#5D4037"]},
+  {n:"Office Stapler", d:"A heavy cream metal stapler from a 1980s desk.", c:["#E3D9C6","#3A3A3A","#B0A99F","#C0392B","#7F8C8D"]},
+  {n:"Tangerine Peel", d:"Peel coiled on a white plate with one segment left.", c:["#F57C00","#FFB74D","#FFF3E0","#8D6E63","#558B2F"]},
+  {n:"Petrol Puddle", d:"An oily rainbow puddle in a car park.", c:["#2B2D42","#7B2CBF","#3A86FF","#06D6A0","#FFBE0B"]},
+  {n:"Lifeguard Tower", d:"A weathered red-and-white lifeguard hut on the sand.", c:["#D62828","#FDFCDC","#F2CC8F","#3D5A80","#98C1D9"]},
+  {n:"Moth Wing", d:"A dusty moth resting on a porch light.", c:["#BFA98A","#8C7A63","#E8DCC8","#4A3F35","#D9B08C"]},
+  {n:"Cola Bottle Sweets", d:"Gummy sweets with a sugary coating.", c:["#5D2E0C","#A0522D","#F5DEB3","#FFFFFF","#8B0000"]},
+  {n:"Hospital Scrubs", d:"A set of washed-out ceil blue scrubs.", c:["#8FB8DE","#5B84B1","#E8EEF4","#2C3E50","#A3D9C9"]},
+  {n:"Doll's House Wallpaper", d:"Tiny rose wallpaper in a Victorian doll's house.", c:["#F6D6D6","#B5838D","#6D6875","#A3B18A","#FFF8F0"]},
+  {n:"Disco Ball", d:"Mirrored tiles throwing light across a dance floor.", c:["#C0C0C0","#E0E0E0","#7B68EE","#FF69B4","#1C1C1C"]},
+  {n:"Ketchup Packet", d:"A torn sachet of ketchup on a fast-food tray.", c:["#C1121F","#FDF0D5","#780000","#669BBC","#FFFFFF"]},
+  {n:"Wedding Cake", d:"A three-tier cake with sugar roses.", c:["#FFF8F0","#F7D6E0","#E9C46A","#B5C99A","#D4A373"]},
+  {n:"Ski Jacket 1989", d:"A shell suit-style ski jacket with geometric panels.", c:["#FF1F8E","#00B3B3","#7A1FA2","#FFE14D","#14213D"]},
+  {n:"Compost Heap", d:"Coffee grounds, eggshells and banana peel.", c:["#3B2A1A","#6B4F2A","#A68A64","#F0E6D2","#6A994E"]},
+  {n:"Blueberry Muffin", d:"A split muffin with purple-stained crumb.", c:["#4B3F72","#7D5BA6","#E8C9A0","#C68B59","#F7EEDD"]},
+  {n:"Traffic Cone", d:"A reflective cone lying on its side.", c:["#FF6B00","#FFFFFF","#1E1E1E","#C0C0C0","#FFD000"]},
+  {n:"Old Swimming Certificate", d:"A 25-metre certificate with a cartoon dolphin.", c:["#F2EBDD","#2A6FDB","#F2B134","#D7263D","#1B998B"]},
+  {n:"Cactus in a Pot", d:"A spiky cactus in a terracotta pot with a pink flower.", c:["#4F772D","#90A955","#C1693C","#F28AB2","#ECE4D4"]},
+  {n:"Bingo Hall", d:"Dabbers, cards and a red patterned carpet.", c:["#9D0208","#F48C06","#FFBA08","#3A86FF","#F1E9DA"]},
+  {n:"Cream Soda", d:"A fizzy pale soda with a scoop of vanilla ice cream.", c:["#F7E7B4","#FFF6E0","#E2B65B","#9DD9D2","#D64550"]},
+  {n:"Sea Glass", d:"Frosted shards of glass found on a pebble beach.", c:["#A8DADC","#B7E4C7","#6C9A8B","#E9F5F2","#3D5A6C"]},
+  {n:"Cinema Seats", d:"Worn red velvet seats under dim house lights.", c:["#7F1D1D","#B91C1C","#1F1F1F","#D4A017","#3B2F2F"]},
+  {n:"Baby Food Jar", d:"Pureed carrot and pea in small glass jars.", c:["#F4A259","#BC4B51","#8CB369","#F4E285","#FFFFFF"]},
+  {n:"Hi-Vis Vest", d:"A fluorescent safety vest with reflective strips.", c:["#DFFF00","#FF6F00","#BDBDBD","#212121","#FAFAFA"]},
+  {n:"Grandad's Tie Drawer", d:"Paisley, tartan and a novelty duck tie.", c:["#6A040F","#2D6A4F","#E9C46A","#264653","#E76F51"]},
+  {n:"Bubblegum Ice Lolly", d:"A melting ice lolly with a gumball nose.", c:["#FF9EC7","#7BDFF2","#F7F052","#FFFFFF","#2E294E"]},
+  {n:"Volcanic Beach", d:"Black sand, white surf and grey basalt.", c:["#121212","#3D3D3D","#8E9AAF","#F8F9FA","#2A9D8F"]},
+  {n:"Garage Workbench", d:"Oil-stained wood, a red toolbox and a yellow tape measure.", c:["#5C4033","#C1121F","#FFC300","#495057","#DEE2E6"]},
+  {n:"Lemon Meringue Pie", d:"A slice with browned peaks and a shortcrust base.", c:["#FFF176","#FFFDE7","#D7A86E","#A0522D","#F5F5F5"]},
+  {n:"Supermarket Bag", d:"A thin plastic carrier bag in a faded stripe.", c:["#F1F1F1","#1565C0","#FF7043","#A5D6A7","#424242"]},
+  {n:"Plum Bruise", d:"A ripe plum with dusty bloom on its skin.", c:["#4A1942","#893168","#C490D1","#E8D7F1","#2B2D42"]},
+  {n:"Calculator Watch", d:"A black digital watch with tiny rubber buttons.", c:["#1A1A1A","#A8B5A2","#C0C0C0","#E63946","#3A5A40"]},
+  {n:"Sunday Roast", d:"Roast potatoes, gravy, peas and a Yorkshire pudding.", c:["#8B4513","#DAA520","#6B8E23","#F5DEB3","#3E2723"]},
+  {n:"Hamster Cage", d:"Bright plastic tubes and a wheel full of sawdust.", c:["#00A6ED","#F6511D","#FFB400","#7FB800","#F1E3C8"]},
+  {n:"Wilted Bouquet", d:"Supermarket roses a week past their best.", c:["#8E4162","#C08497","#7D8F69","#E8D5B7","#4A3728"]},
+  {n:"Felt-Tip Pen Set", d:"A pack of pens, half of them dried out.", c:["#E63946","#F4A261","#2A9D8F","#264653","#9B5DE5"]},
+  {n:"Sauna Bench", d:"Pale pine slats and a bucket of water.", c:["#E3C9A0","#C9A66B","#8C6A43","#F7F1E5","#4B3B2A"]},
+  {n:"Ferry Cafeteria", d:"Orange trays, teal seats and a choppy grey sea outside.", c:["#F28C28","#1F8A8A","#9AA5AB","#F3EFE6","#2E3A46"]},
+  {n:"Rainbow Trout", d:"A freshly caught trout with a pink stripe.", c:["#8DA47E","#E8A0A0","#C9C9B6","#4B5D3E","#F5EFE0"]},
+  {n:"Snooker Table", d:"Green baize, a red ball and chalk dust.", c:["#0B6623","#C1121F","#1D1D1D","#F5F0E1","#5B3A1A"]},
+  {n:"Matcha Latte", d:"Frothy green tea in a speckled ceramic cup.", c:["#A3B86C","#E7EFC5","#D9CAB3","#6B4F3A","#FAF7F0"]},
+  {n:"Phone Box", d:"A red phone box with fogged-up glass.", c:["#C8102E","#E5E5E5","#2B2B2B","#F2C14E","#6C757D"]},
+  {n:"Sherbet Dip", d:"A paper tube of fizzy sherbet with a liquorice straw.", c:["#FDE74C","#FF8C94","#A0E7E5","#B4F8C8","#1B1B1B"]},
+  {n:"Cathedral Window", d:"Stained glass catching late afternoon sun.", c:["#1D3557","#C1121F","#F4A261","#2A9D8F","#6A4C93"]},
+  {n:"Allotment Shed", d:"A creosote shed with seed packets pinned inside.", c:["#4E3B2A","#7A9E7E","#E9D8A6","#BB3E03","#94D2BD"]},
+  {n:"Tinned Peaches", d:"Peach slices in syrup, served with evaporated milk.", c:["#FFB570","#FFDDB0","#FFF5E8","#C26A2E","#9EB3C2"]},
+  {n:"Crayon Box", d:"A battered box of wax crayons with broken tips.", c:["#E4572E","#29335C","#F3A712","#669BBC","#A8C686"]},
+  {n:"Penguin Enclosure", d:"Painted blue walls, fake rocks and real penguins.", c:["#5DA9E9","#1B1B1E","#FFFFFF","#F6AE2D","#B8C5D6"]}
+];
+
+const $ = id => document.getElementById(id);
+const cols = {
+  cat:  {data:CATEGORIES, list:$("list-cat"),  hold:$("hold-cat"),  idx:2},
+  brand:{data:BRANDS,     list:$("list-brand"),hold:$("hold-brand"),idx:19},
+  pal:  {data:PALETTES.map(p=>p.n), list:$("list-pal"), hold:$("hold-pal"), idx:0}
+};
+let spinning = false;
+let history = [];
+try { history = JSON.parse((localStorage.getItem("exactly-history") || localStorage.getItem("oddly-history"))||"[]") || []; } catch(e){ history = []; }
+
+function build(key){
+  const c = cols[key];
+  c.list.innerHTML = "";
+  c.data.forEach((label,i)=>{
+    const li = document.createElement("li");
+    li.textContent = label; li.role = "option"; li.dataset.i = i;
+    li.addEventListener("click",()=>{ if(spinning) return; select(key,i,true); commit(); });
+    c.list.appendChild(li);
+  });
+  c.list.addEventListener("keydown",e=>{
+    if(spinning) return;
+    if(e.key==="ArrowDown"||e.key==="ArrowUp"){
+      e.preventDefault();
+      const n = c.data.length;
+      select(key,(c.idx+(e.key==="ArrowDown"?1:-1)+n)%n,true); commit();
+    }
+  });
+}
+function select(key,i,scroll){
+  const c = cols[key];
+  const prev = c.list.children[c.idx]; if(prev){prev.classList.remove("on");prev.setAttribute("aria-selected","false");}
+  c.idx = i;
+  const li = c.list.children[i]; li.classList.add("on"); li.setAttribute("aria-selected","true");
+  if(scroll){
+    const top = li.offsetTop - c.list.clientHeight/2 + li.offsetHeight/2;
+    c.list.scrollTop = Math.max(0, top);
+  }
+}
+function current(){
+  return { cat:CATEGORIES[cols.cat.idx], brand:BRANDS[cols.brand.idx], pal:PALETTES[cols.pal.idx] };
+}
+function article(word){ return /^[aeiou]/i.test(word) ? "an" : "a"; }
+function promptText(s){
+  return `Design ${article(s.cat)} ${s.cat.toLowerCase()} brand called "${s.brand}", using only colours from ${article(s.pal.n)} ${s.pal.n.toLowerCase()}.`;
+}
+function renderPreview(){
+  const s = current();
+  $("pv-title").textContent = s.pal.n;
+  $("pv-note").textContent = s.pal.d;
+  const sw = $("swatches"); sw.innerHTML = "";
+  s.pal.c.forEach(hex=>{
+    const b = document.createElement("button");
+    b.type="button"; b.className="sw"; b.style.background = hex;
+    b.title = "Copy " + hex; b.setAttribute("aria-label","Copy colour "+hex);
+    b.innerHTML = `<span>${hex.slice(1)}</span>`;
+    b.addEventListener("click",()=>copy(hex, hex+" copied"));
+    sw.appendChild(b);
+  });
+  $("status").textContent = `${s.cat} • ${s.brand} • ${s.pal.n}`;
+  $("prompt").innerHTML = `Design ${article(s.cat)} <em>${esc(s.cat.toLowerCase())}</em> brand called <em>“${esc(s.brand)}”</em>, using only colours from ${article(s.pal.n)} <em>${esc(s.pal.n.toLowerCase())}</em>.`;
+}
+function esc(t){return t.replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));}
+
+function caption(words){
+  const el = $("caption"); el.innerHTML = "";
+  words.forEach((w,i)=>{
+    const span = document.createElement("span");
+    span.className="w"; span.textContent = w;
+    span.style.animationDelay = (i*70)+"ms";
+    el.appendChild(span);
+  });
+}
+
+function commit(){
+  renderPreview();
+  const s = current();
+  caption(["exactly."]);
+  history = history.filter(h=>!(h.cat===s.cat&&h.brand===s.brand&&h.pal===s.pal.n));
+  history.unshift({cat:s.cat,brand:s.brand,pal:s.pal.n});
+  history = history.slice(0,8);
+  try{ localStorage.setItem("exactly-history",JSON.stringify(history)); }catch(e){}
+  renderHistory();
+}
+function renderHistory(){
+  const ol = $("history");
+  if(!history.length){ ol.innerHTML = '<li class="empty">Your last eight challenges show up here.</li>'; return; }
+  ol.innerHTML = "";
+  history.forEach(h=>{
+    const p = PALETTES.find(x=>x.n===h.pal); if(!p) return;
+    const li = document.createElement("li");
+    const mini = document.createElement("span"); mini.className="mini";
+    p.c.forEach(hex=>{ const i=document.createElement("i"); i.style.background=hex; mini.appendChild(i); });
+    const b = document.createElement("button"); b.type="button";
+    b.textContent = `${h.cat} · ${h.brand} · ${h.pal}`;
+    b.addEventListener("click",()=>{
+      if(spinning) return;
+      select("cat",CATEGORIES.indexOf(h.cat),true);
+      select("brand",BRANDS.indexOf(h.brand),true);
+      select("pal",PALETTES.indexOf(p),true);
+      renderPreview(); caption(["back","again"]);
+    });
+    li.append(mini,b); ol.appendChild(li);
+  });
+}
+
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function spinColumn(key,stopAfter){
+  return new Promise(res=>{
+    const c = cols[key];
+    if(c.hold.checked){ res(); return; }
+    const n = c.data.length;
+    let target; do{ target = Math.floor(Math.random()*n); }while(n>1 && target===c.idx);
+    if(reduced){ select(key,target,true); res(); return; }
+    const start = performance.now();
+    let last = 0;
+    (function tick(t){
+      const el = t-start;
+      if(el >= stopAfter){ select(key,target,true); res(); return; }
+      const progress = el/stopAfter;
+      const gap = 40 + progress*progress*180;      // slows down as it goes
+      if(t-last > gap){ last = t; select(key,(c.idx+1)%n,true); }
+      requestAnimationFrame(tick);
+    })(start);
+  });
+}
+async function generate(){
+  if(spinning) return;
+  spinning = true; $("generate").disabled = true;
+  caption(["generating…"]);
+  await Promise.all([spinColumn("cat",900),spinColumn("brand",1250),spinColumn("pal",1600)]);
+  spinning = false; $("generate").disabled = false;
+  const s = current();
+  renderPreview();
+  commit();
+  caption([s.cat.toLowerCase(), "×", s.brand]);
+}
+
+function copy(text,msg){
+  const done = ()=>{ $("toast").textContent = msg; clearTimeout(copy.t); copy.t=setTimeout(()=>$("toast").textContent="",2200); };
+  try{
+    navigator.clipboard.writeText(text).then(done,()=>fallback(text,done));
+  }catch(e){ fallback(text,done); }
+}
+function fallback(text,done){
+  const ta = document.createElement("textarea");
+  ta.value = text; ta.setAttribute("readonly","");
+  ta.style.position = "fixed"; ta.style.opacity = "0"; ta.style.pointerEvents = "none";
+  document.body.appendChild(ta); ta.select();
+  let ok = false;
+  try { ok = document.execCommand("copy"); } catch(e) {}
+  ta.remove();
+  if (ok) { done(); return; }
+  $("toast").textContent = "Couldn't reach the clipboard. Copy this by hand: " + text;
+}
+
+$("generate").addEventListener("click",generate);
+$("copy").addEventListener("click",()=>{ const s=current(); copy(promptText(s)+"\nPalette: "+s.pal.c.join(", "),"Prompt copied"); });
+$("copyhex").addEventListener("click",()=>copy(current().pal.c.join(", "),"Hex codes copied"));
+document.addEventListener("keydown",e=>{
+  if(e.code==="Space" && !["INPUT","BUTTON","TEXTAREA"].includes(document.activeElement.tagName)){ e.preventDefault(); generate(); }
+});
+
+Object.keys(cols).forEach(build);
+// Sample starting roll, matching the example in the video
+select("cat",2,true); select("brand",19,true); select("pal",0,true);
+renderPreview(); renderHistory();
+caption(["design","exactly","this"]);
+</script>
+</body>
+</html>
